@@ -8,12 +8,8 @@
 
 import React from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  StatusBar,
+  Button
 } from 'react-native';
 
 import {
@@ -241,73 +237,53 @@ const App: () => React$Node = () => {
         const arrayBuffer = oReq.response;
         if (arrayBuffer) {
           const rego = new Rego();
-            rego.load_policy(arrayBuffer).then((policies) => {
-                // window.Mattermost = {Authz: policies};
+            rego.load_policy(arrayBuffer).then((loadedPolicy) => {
+                window.Authz = loadedPolicy;
                 const data = { post_restricted_channels: { user: ['c3r1pae4hjrepx6qfghatmeekc'], guest: [], admin: [] } };
-                const input = {
-                    subject: { type: 'person', attributes: { channel_role: 'user' } },
-                    operation: 'write',
-                    resource: { type: 'post', attributes: { channel_id: 'c3r1pae4hjrepx6qfghatmeekc' } },
-                };
-                policies.set_data(data);
-                const result = policies.evaluate(input);
-                window.ReactNativeWebView.postMessage(result[0].x);
+                loadedPolicy.set_data(data);
             });
         }
     };
     oReq.send(null);
   })();
+
+  function evaluate(input) {
+    const response = window.Authz.evaluate(JSON.parse(input));
+    window.ReactNativeWebView.postMessage(response[0].x);
+  }
 `;
 
   return (
     <>
       <WebView
+        ref={r => (this.webref = r)}
         injectedJavaScript={INJECTED_JAVASCRIPT}
-        onMessage={({nativeEvent}) => {
+        onMessage={({ nativeEvent }) => {
           alert(nativeEvent.data);
         }}
       />
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+      <Button
+        onPress={() => {
+          const input = {
+            subject: { type: 'person', attributes: { channel_role: 'user' } },
+            operation: 'write',
+            resource: { type: 'post', attributes: { channel_id: 'c3r1pae4hjrepx6qfghatmeekc' } },
+          };
+          this.webref.injectJavaScript(`evaluate('${JSON.stringify(input)}');`);
+        }}
+        title="Simulate User"
+      />
+      <Button
+        onPress={() => {
+          const input = {
+            subject: { type: 'person', attributes: { channel_role: 'admin' } },
+            operation: 'write',
+            resource: { type: 'post', attributes: { channel_id: 'c3r1pae4hjrepx6qfghatmeekc' } },
+          };
+          this.webref.injectJavaScript(`evaluate('${JSON.stringify(input)}');`);
+        }}
+        title="Simulate Admin"
+      />
     </>
   );
 };
